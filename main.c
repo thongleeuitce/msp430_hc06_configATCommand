@@ -6,9 +6,13 @@
 #define RX BIT1
 #define TX BIT2
 #define S2 BIT3
-#define BUTTON BIT4
 
-volatile char return_AT [10] = "";
+#define pinnumber "AT+PIN5555"
+#define name "AT+NAMEthonglee"
+#define baudrate "AT+BAUD4"
+
+volatile unsigned int count = 0;
+volatile unsigned int i;
 
 void _config_clock(void)
 {
@@ -24,8 +28,8 @@ void _config_clock(void)
 void _config_gpio(void)
 {
     P1DIR = LED1 | LED2; // Set P1.0 to output direction
-    P1OUT = S2 | BUTTON;
-    P1REN  = S2 | BUTTON;
+    P1OUT = S2;
+    P1REN  = S2;
 }
 
 void _config_uart(void)
@@ -46,9 +50,9 @@ void _config_uart(void)
 }
 void main(void)
 {
-    volatile unsigned int i;
-    volatile char command[] = "AT+BAUD4";
-    volatile char temp;
+    volatile char command_name[] = name;
+    volatile char command_pin[] = pinnumber;
+    volatile char command_baud[] = baudrate;
 
     WDTCTL = WDTPW | WDTHOLD;       // Stop watchdog timer
     _config_clock();
@@ -59,20 +63,37 @@ void main(void)
     {
         if((P1IN & S2) == 0)
         {
-            for(i = 0; i< strlen(command); i++)
+            switch(count)
             {
-                while(!(IFG2 & UCA0TXIFG));
-                UCA0TXBUF = command[i];
+            case 0:
+                transmit_AT(command_name);
+                break;
+            case 1:
+                transmit_AT(command_pin);
+                break;
+            case 2:
+                transmit_AT(command_baud);
+                break;
             }
-            _delay_cycles(12000000);
         }
     }
 }
+
+void transmit_AT(char* temp)
+{
+    for (i = 0; i< strlen(temp); i++)
+    {
+        while(!(IFG2 & UCA0TXIFG));
+        UCA0TXBUF = temp[i];
+    }
+    count ++;
+    _delay_cycles(12000000);
+}
+
 #pragma vector = USCIAB0RX_VECTOR
 __interrupt void USCI0RX_IRS (void)
 {
     while(!(IFG2 & UCA0RXIFG));
-    //strcat(return_AT, UCA0RXBUF);
-    if(UCA0RXBUF == '9')
+    if (UCA0RXBUF == 'K')
         P1OUT ^= 0x01;
 }
